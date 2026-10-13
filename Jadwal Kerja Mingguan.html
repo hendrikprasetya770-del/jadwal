@@ -1,0 +1,736 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Jadwal Kerja Mingguan</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,500..800&family=Instrument+Sans:wght@400..700&family=JetBrains+Mono:wght@400..600&display=swap">
+<style>
+:root{
+  /* Papan jadwal: tabel orang x hari dengan kotak shift berwarna, baris "Bertugas" di bawahnya,
+     lalu ringkasan jam kerja dan daftar yang perlu dicek. Warna shift dipegang tiga slot tetap (k1, k2, k3). */
+  --bg:#f2f4f1; --surface:#ffffff; --surface-2:#e8ece8; --fg:#18211d; --muted:#586660;
+  --line:#d2d9d3; --line-strong:#b3beb6;
+  --accent:#2457b2; --btn-bg:#18211d; --btn-fg:#f2f4f1;
+  --k1-bg:#fbe9b7; --k1-fg:#5c3d00; --k1-bar:#d99a00;
+  --k2-bg:#c6ebe4; --k2-fg:#0b4a41; --k2-bar:#1f9a87;
+  --k3-bg:#e5d6f0; --k3-fg:#43205e; --k3-bar:#8353a8;
+  --off-bg:#e8ece8; --off-fg:#586660;
+  --warn:#9a5200; --warn-bg:#fdeccf; --danger:#b3261e; --danger-bg:#fbe4e2; --ok:#1b7a43; --ok-bg:#dff3e6;
+  --font-display:'Archivo','Arial Narrow',system-ui,sans-serif;
+  --font-body:'Instrument Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1512; --surface:#17201c; --surface-2:#1f2a25; --fg:#e6ede9; --muted:#97a69f;
+    --line:#2b3832; --line-strong:#41524a;
+    --accent:#7aa5f0; --btn-bg:#e6ede9; --btn-fg:#0f1512;
+    --k1-bg:#4a3706; --k1-fg:#f6d98a; --k1-bar:#e6b030;
+    --k2-bg:#0f3d36; --k2-fg:#a6e3d8; --k2-bar:#3bbfa9;
+    --k3-bg:#3a2650; --k3-fg:#dcc3f0; --k3-bar:#a77ccc;
+    --off-bg:#1f2a25; --off-fg:#97a69f;
+    --warn:#f0b060; --warn-bg:#3a2a0e; --danger:#ff8a80; --danger-bg:#3b1d1b; --ok:#6fd49b; --ok-bg:#17301f;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1512; --surface:#17201c; --surface-2:#1f2a25; --fg:#e6ede9; --muted:#97a69f;
+  --line:#2b3832; --line-strong:#41524a;
+  --accent:#7aa5f0; --btn-bg:#e6ede9; --btn-fg:#0f1512;
+  --k1-bg:#4a3706; --k1-fg:#f6d98a; --k1-bar:#e6b030;
+  --k2-bg:#0f3d36; --k2-fg:#a6e3d8; --k2-bar:#3bbfa9;
+  --k3-bg:#3a2650; --k3-fg:#dcc3f0; --k3-bar:#a77ccc;
+  --off-bg:#1f2a25; --off-fg:#97a69f;
+  --warn:#f0b060; --warn-bg:#3a2a0e; --danger:#ff8a80; --danger-bg:#3b1d1b; --ok:#6fd49b; --ok-bg:#17301f;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--font-body);padding-inline:16px;padding-block:20px 48px;-webkit-text-size-adjust:100%}
+.wrap{max-width:1120px;margin:0 auto}
+h1,h2,legend{font-family:var(--font-display)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+button,input,select,textarea{font:inherit;color:inherit}
+
+/* Header */
+.top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:14px 24px;margin-bottom:16px}
+h1{margin:0;font-size:clamp(30px,6vw,44px);font-weight:800;font-stretch:80%;line-height:1;letter-spacing:-.01em;text-wrap:balance}
+.sub{margin:6px 0 0;color:var(--muted)}
+.weeknav{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.weeklabel{display:flex;flex-direction:column;align-items:center;min-width:150px;text-align:center}
+.weeklabel strong{font-family:var(--font-display);font-size:19px;font-weight:700;font-stretch:90%}
+.tag{display:inline-block;margin-top:2px;padding:1px 8px;border-radius:99px;font-size:12px;font-weight:600;background:var(--warn-bg);color:var(--warn)}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:8px 14px;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);font-weight:600;cursor:pointer;transition:background .12s,border-color .12s}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--btn-bg);color:var(--btn-fg);border-color:var(--btn-bg)}
+.btn.primary:hover{opacity:.9;background:var(--btn-bg)}
+.btn.armed{background:var(--danger-bg);color:var(--danger);border-color:var(--danger)}
+.btn.sq{width:40px;padding:0;font-size:20px;line-height:1}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn[aria-pressed="true"],.btn[aria-expanded="true"]{background:var(--surface-2)}
+:is(.btn,input,select,textarea,.chip-btn):focus-visible,.cell:focus-within,.board:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px}
+.status{margin-left:auto;font-size:13px;color:var(--muted);min-height:20px}
+.status[data-s="error"]{color:var(--danger)}
+
+/* Legend and banner */
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;list-style:none;margin:0 0 12px;padding:0;font-size:13px;color:var(--muted)}
+.legend li{display:flex;align-items:center;gap:7px}
+.legend .sw{width:12px;height:12px;border-radius:3px;flex:none}
+.legend .mono{font-family:var(--font-mono);font-size:12px}
+.sw.k1,.dots i.k1{background:var(--k1-bar)} .sw.k2,.dots i.k2{background:var(--k2-bar)} .sw.k3,.dots i.k3{background:var(--k3-bar)}
+.sw.off{background:var(--line-strong)}
+.banner{margin:0 0 12px;padding:12px 14px;border-radius:8px;background:var(--surface-2);font-size:14px}
+
+/* Board */
+.board{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.grid{border-collapse:separate;border-spacing:0;width:100%;min-width:780px}
+.grid th,.grid td{padding:0;font-weight:inherit}
+.grid thead th{padding:9px 4px 8px;text-align:center;border-bottom:1px solid var(--line);background:var(--surface)}
+.grid .dn{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.grid .dd{display:block;font-family:var(--font-display);font-size:21px;font-weight:700;line-height:1.15;font-stretch:90%}
+.grid thead th.today{box-shadow:inset 0 3px 0 var(--accent)}
+.grid thead th.today .dn,.grid thead th.today .dd{color:var(--accent)}
+.grid .person{position:sticky;left:0;z-index:2;width:128px;min-width:128px;padding:8px 12px;text-align:left;background:var(--surface);border-right:1px solid var(--line)}
+.grid .pn{display:block;font-family:var(--font-display);font-size:15px;font-weight:700;font-stretch:90%;overflow-wrap:anywhere;line-height:1.2}
+.role{display:inline-block;margin-top:3px;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+tr.dw .role{padding:0 6px;border:1px solid var(--line-strong);border-radius:99px;color:var(--fg)}
+tr.dw th,tr.dw td{border-top:1px dashed var(--line-strong)}
+.grid td{padding:4px;min-width:92px}
+.cell{position:relative;display:grid;place-content:center;gap:3px;height:52px;border-radius:7px;text-align:center;cursor:pointer;overflow:hidden}
+.cell:hover{box-shadow:0 0 0 2px var(--line-strong)}
+.c-name{font-family:var(--font-display);font-weight:700;font-size:14px;font-stretch:90%;line-height:1.1}
+.c-time{font-family:var(--font-mono);font-size:10.5px;opacity:.85;letter-spacing:-.02em}
+.cell select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:16px;border:0;background:transparent}
+.cell.k1{background:var(--k1-bg);color:var(--k1-fg)} .cell.k2{background:var(--k2-bg);color:var(--k2-fg)} .cell.k3{background:var(--k3-bg);color:var(--k3-fg)}
+.cell.off{background:var(--off-bg);color:var(--off-fg)}
+.cell.none{border:1px dashed var(--line-strong);color:var(--muted)}
+.cell.warn::after{content:"";position:absolute;top:5px;right:5px;width:9px;height:9px;border-radius:50%;background:var(--warn);box-shadow:0 0 0 2px var(--surface)}
+.ro .cell,.cell.locked{cursor:default}
+.grid tfoot th,.grid tfoot td{padding:8px 4px 10px;text-align:center;border-top:1px solid var(--line);background:var(--surface)}
+.grid tfoot .person{font-family:var(--font-display);font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.06em;font-stretch:90%;color:var(--muted)}
+.cnt{display:block;font-family:var(--font-mono);font-size:18px;font-weight:600;line-height:1.2}
+.dots{display:flex;justify-content:center;gap:3px;margin-top:4px;min-height:10px}
+.dots i{width:10px;height:10px;border-radius:2px}
+td.low{background:var(--danger-bg)} td.low .cnt{color:var(--danger)}
+
+/* Panels */
+.panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:16px;margin-top:16px}
+.panel{min-width:0;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.panel h2{display:flex;align-items:center;gap:8px;margin:0 0 6px;font-size:14px;font-weight:700;font-stretch:90%;text-transform:uppercase;letter-spacing:.07em}
+.count{min-width:22px;padding:0 7px;border-radius:99px;font-family:var(--font-mono);font-size:12px;font-weight:600;text-align:center;background:var(--surface-2);color:var(--muted)}
+.count.bad{background:var(--danger-bg);color:var(--danger)} .count.mid{background:var(--warn-bg);color:var(--warn)}
+.hrow{display:grid;grid-template-columns:minmax(70px,96px) minmax(0,1fr) auto;gap:6px 12px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.hrow:first-of-type{border-top:0}
+.hname{font-weight:600;overflow-wrap:anywhere;line-height:1.25}
+.meter{position:relative;height:8px;border-radius:4px;background:var(--surface-2)}
+.meter i{display:block;height:100%;border-radius:4px;background:var(--accent);transition:width .25s}
+.meter.over i{background:var(--danger)} .meter.dwm i{background:var(--k2-bar)}
+.meter b{position:absolute;top:-3px;bottom:-3px;width:2px;border-radius:1px;background:var(--fg);opacity:.55}
+.hval{text-align:right;font-size:12px;color:var(--muted);line-height:1.3}
+.hval strong{display:block;font-family:var(--font-mono);font-size:14px;font-weight:600;color:var(--fg)}
+.hval .bad{color:var(--danger);font-weight:600}
+.issues{list-style:none;margin:0;padding:0}
+.iss{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;padding:9px 0;border-top:1px solid var(--line);font-size:14px}
+.iss:first-child{border-top:0}
+.iss .mk{width:10px;height:10px;margin-top:6px;border-radius:50%;background:var(--muted)}
+.iss.danger .mk{background:var(--danger)} .iss.warn .mk{background:var(--warn)} .iss.ok .mk{background:var(--ok)}
+.iss.ok{color:var(--ok)}
+.empty{margin:6px 0 0;color:var(--muted);font-size:14px}
+
+/* Settings and WhatsApp panels */
+.drawer{margin-bottom:16px;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.sgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));gap:20px}
+fieldset{min-width:0;margin:0;padding:0;border:0}
+legend{padding:0;margin-bottom:10px;font-size:14px;font-weight:700;font-stretch:90%;text-transform:uppercase;letter-spacing:.07em}
+.fld{display:block;margin-bottom:10px;font-size:13px;color:var(--muted)}
+.fld input,.fld select{display:block;width:100%;min-height:38px;margin-top:3px;padding:6px 9px;background:var(--bg);color:var(--fg);border:1px solid var(--line-strong);border-radius:6px;font-size:15px}
+.shiftset{margin-bottom:12px;padding:10px;border-radius:8px;background:var(--bg);border-left:0}
+.shiftset .sname{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.shiftset .sname .sw{width:12px;height:12px;border-radius:3px;flex:none}
+.shiftset .sname input{flex:1;min-width:0;min-height:36px;padding:5px 9px;font-weight:600;background:var(--surface);border:1px solid var(--line-strong);border-radius:6px}
+.trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.trio .fld{margin:0}
+.trio input{min-width:0;padding-inline:6px}
+.net{margin:8px 0 0;font-size:13px;color:var(--muted)}
+.net output{font-family:var(--font-mono);color:var(--fg)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.chip-btn{min-width:46px;min-height:36px;padding:4px 8px;border:1px solid var(--line-strong);border-radius:8px;background:var(--bg);font-weight:600;cursor:pointer}
+.chip-btn[aria-pressed="true"]{background:var(--btn-bg);color:var(--btn-fg);border-color:var(--btn-bg)}
+.hint{margin:0;font-size:13px;color:var(--muted)}
+.wa textarea{display:block;width:100%;min-height:260px;padding:12px;background:var(--bg);color:var(--fg);border:1px solid var(--line-strong);border-radius:8px;font-family:var(--font-mono);font-size:13px;line-height:1.5;resize:vertical}
+.wa .row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
+.wa h2{margin:0 0 10px;font-size:14px;font-weight:700;font-stretch:90%;text-transform:uppercase;letter-spacing:.07em}
+.foot{margin:16px 0 0;font-size:13px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:520px){.status{margin-left:0;width:100%}.weeklabel{min-width:0;flex:1}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Jadwal Kerja</h1>
+      <p class="sub" id="teamline">4 staff dan 1 DW</p>
+    </div>
+    <div class="weeknav" role="group" aria-label="Pilih minggu">
+      <button class="btn sq" id="prev" type="button" aria-label="Minggu sebelumnya">&lsaquo;</button>
+      <div class="weeklabel"><strong id="weeklabel"></strong><span class="tag" id="exampletag" hidden>Contoh jadwal</span></div>
+      <button class="btn sq" id="next" type="button" aria-label="Minggu berikutnya">&rsaquo;</button>
+      <button class="btn" id="thisweek" type="button">Minggu ini</button>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <button class="btn primary" id="autofill" type="button">Isi otomatis</button>
+    <button class="btn" id="copyprev" type="button">Salin minggu lalu</button>
+    <button class="btn" id="clear" type="button">Kosongkan</button>
+    <button class="btn" id="wabtn" type="button" aria-expanded="false" aria-controls="wa">Teks WhatsApp</button>
+    <button class="btn" id="setbtn" type="button" aria-expanded="false" aria-controls="settings">Pengaturan</button>
+    <span class="status" id="status" role="status" aria-live="polite"></span>
+  </div>
+
+  <section class="drawer" id="settings" aria-label="Pengaturan" hidden></section>
+
+  <section class="drawer wa" id="wa" aria-label="Teks untuk WhatsApp" hidden>
+    <h2>Teks untuk WhatsApp</h2>
+    <textarea id="watext" readonly aria-label="Jadwal dalam bentuk teks"></textarea>
+    <div class="row">
+      <button class="btn primary" id="wacopy" type="button">Salin teks</button>
+      <span class="hint" id="wamsg" role="status" aria-live="polite"></span>
+    </div>
+  </section>
+
+  <ul class="legend" id="legend" aria-label="Keterangan shift"></ul>
+  <p class="banner" id="banner" hidden></p>
+
+  <div class="board" id="board" role="region" aria-label="Tabel jadwal, geser ke samping jika terpotong" tabindex="0"></div>
+
+  <div class="panels">
+    <section class="panel" aria-labelledby="h-hours"><h2 id="h-hours">Jam kerja minggu ini</h2><div id="hours"></div></section>
+    <section class="panel" aria-labelledby="h-issues"><h2 id="h-issues">Perlu dicek <span class="count" id="issuecount">0</span></h2><ul class="issues" id="issues"></ul></section>
+  </div>
+
+  <p class="foot" id="foot"></p>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* LOGIC:START */
+var DAYS=['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
+var DAYS_S=['Sen','Sel','Rab','Kam','Jum','Sab','Min'];
+var MONTHS=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+var ALLOWED=['','off','k1','k2','k3'];
+
+var DEFAULT_CONFIG={
+  people:[
+    {id:'s1',type:'staff',name:'Staff 1',def:'Staff 1'},
+    {id:'s2',type:'staff',name:'Staff 2',def:'Staff 2'},
+    {id:'s3',type:'staff',name:'Staff 3',def:'Staff 3'},
+    {id:'s4',type:'staff',name:'Staff 4',def:'Staff 4'},
+    {id:'dw',type:'dw',name:'DW',def:'DW'}
+  ],
+  shifts:[
+    {id:'k1',name:'Pagi',start:'07:00',end:'15:00',brk:60},
+    {id:'k2',name:'Siang',start:'11:00',end:'19:00',brk:60},
+    {id:'k3',name:'Malam',start:'15:00',end:'23:00',brk:60}
+  ],
+  limit:40, minOn:2, minRest:10, offDays:2, dwDays:[4,5,6]
+};
+
+function clone(o){return JSON.parse(JSON.stringify(o));}
+function pad(n){return String(n).padStart(2,'0');}
+function keyOf(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function addDays(d,n){return new Date(d.getFullYear(),d.getMonth(),d.getDate()+n);}
+function mondayOf(d){return addDays(d,-((d.getDay()+6)%7));}
+function weekIdx(d){return Math.round((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())-Date.UTC(1970,0,5))/604800000);}
+function toMin(t){var p=String(t).split(':');return (+p[0])*60+(+p[1]);}
+function span(sh){var s=toMin(sh.start),e=toMin(sh.end);if(e<=s)e+=1440;return {s:s,e:e};}
+function netHours(sh){var x=span(sh);return Math.max(0,(x.e-x.s-(+sh.brk||0))/60);}
+function shiftById(cfg,id){for(var i=0;i<cfg.shifts.length;i++){if(cfg.shifts[i].id===id)return cfg.shifts[i];}return null;}
+function fmtH(x){x=Math.round(x*10)/10;return Number.isInteger(x)?String(x):String(x).replace('.',',');}
+function fmtT(t){return String(t).replace(':','.');}
+function nameOf(p){return (p.name||'').trim()||p.def||'Tanpa nama';}
+function clamp(v,a,b){return Math.min(b,Math.max(a,v));}
+
+function weekLabel(s){
+  var e=addDays(s,6),m=function(d){return MONTHS[d.getMonth()];};
+  if(s.getFullYear()!==e.getFullYear())return s.getDate()+' '+m(s)+' '+s.getFullYear()+' – '+e.getDate()+' '+m(e)+' '+e.getFullYear();
+  if(s.getMonth()!==e.getMonth())return s.getDate()+' '+m(s)+' – '+e.getDate()+' '+m(e)+' '+e.getFullYear();
+  return s.getDate()+'–'+e.getDate()+' '+m(e)+' '+e.getFullYear();
+}
+
+function normCfg(raw){
+  var d=clone(DEFAULT_CONFIG);
+  if(!raw||typeof raw!=='object')return d;
+  d.people.forEach(function(p){
+    var r=(raw.people||[]).filter(function(x){return x&&x.id===p.id;})[0];
+    if(r&&typeof r.name==='string')p.name=r.name.slice(0,24);
+  });
+  d.shifts.forEach(function(s){
+    var r=(raw.shifts||[]).filter(function(x){return x&&x.id===s.id;})[0];
+    if(!r)return;
+    if(typeof r.name==='string')s.name=r.name.slice(0,16);
+    if(/^\d{2}:\d{2}$/.test(r.start))s.start=r.start;
+    if(/^\d{2}:\d{2}$/.test(r.end))s.end=r.end;
+    if(typeof r.brk==='number'&&isFinite(r.brk))s.brk=clamp(Math.round(r.brk),0,240);
+  });
+  var lim={limit:[1,80],minOn:[0,5],minRest:[0,16],offDays:[1,2]};
+  Object.keys(lim).forEach(function(k){if(typeof raw[k]==='number'&&isFinite(raw[k]))d[k]=clamp(raw[k],lim[k][0],lim[k][1]);});
+  if(Array.isArray(raw.dwDays))d.dwDays=raw.dwDays.filter(function(n){return Number.isInteger(n)&&n>=0&&n<7;});
+  return d;
+}
+
+function normCells(raw){
+  var out={};
+  DEFAULT_CONFIG.people.forEach(function(p){
+    var a=raw&&Array.isArray(raw[p.id])?raw[p.id]:[];
+    out[p.id]=[0,1,2,3,4,5,6].map(function(i){return ALLOWED.indexOf(a[i])>=0?a[i]:'';});
+  });
+  return out;
+}
+function normWeek(raw){return {cells:normCells(raw&&raw.cells),example:!!(raw&&raw.example)};}
+
+/* Rotasi awal: shift staff berputar mundur tiap minggu (Pagi > Malam > Siang > Pagi),
+   sehingga pergantian minggu selalu menyisakan jeda 12 jam. Libur staff digeser per orang. */
+function autoFill(cfg,idx){
+  var cells={},n=cfg.shifts.length;
+  var staff=cfg.people.filter(function(p){return p.type==='staff';});
+  staff.forEach(function(p,j){
+    var sh=cfg.shifts[(((j-idx)%n)+n)%n].id,offs={};
+    for(var k=0;k<cfg.offDays;k++)offs[(2*j+k+idx)%7]=true;
+    cells[p.id]=[0,1,2,3,4,5,6].map(function(d){return offs[d]?'off':sh;});
+  });
+  cfg.people.filter(function(p){return p.type==='dw';}).forEach(function(p){
+    cells[p.id]=[0,1,2,3,4,5,6].map(function(d){return cfg.dwDays.indexOf(d)>=0?cfg.shifts[1].id:'off';});
+  });
+  return normCells(cells);
+}
+
+function analyze(cfg,cells){
+  var rows={},issues=[],warn={},filled=0,dayCov=[];
+  function cell(p,d){return (cells[p.id]&&cells[p.id][d])||'';}
+  cfg.people.forEach(function(p){
+    var hours=0,days=0,empty=0,nm=nameOf(p),d;
+    for(d=0;d<7;d++){
+      var v=cell(p,d);
+      if(v)filled++;else empty++;
+      var sh=shiftById(cfg,v);
+      if(sh){days++;hours+=netHours(sh);}
+    }
+    rows[p.id]={hours:hours,days:days,empty:empty};
+    for(d=0;d<6;d++){
+      var a=shiftById(cfg,cell(p,d)),b=shiftById(cfg,cell(p,d+1));
+      if(a&&b){
+        var gap=(1440+toMin(b.start)-span(a).e)/60;
+        if(gap<cfg.minRest){
+          var msg=nm+': '+a.name+' hari '+DAYS[d]+' lalu '+b.name+' hari '+DAYS[d+1]+', jeda istirahat hanya '+fmtH(gap)+' jam (minimal '+cfg.minRest+').';
+          warn[p.id+'-'+d]=msg;warn[p.id+'-'+(d+1)]=msg;
+          issues.push({level:'warn',text:msg});
+        }
+      }
+    }
+    if(p.type==='staff'){
+      if(hours>cfg.limit)issues.push({level:'danger',text:nm+': '+fmtH(hours)+' jam kerja, melebihi batas '+fmtH(cfg.limit)+' jam per minggu.'});
+      if(days===7)issues.push({level:'danger',text:nm+': bekerja 7 hari tanpa libur.'});
+    }
+  });
+  for(var d2=0;d2<7;d2++){
+    var on=[],complete=true;
+    cfg.people.forEach(function(p){
+      var v=cell(p,d2);
+      if(!v)complete=false;
+      var sh=shiftById(cfg,v);
+      if(sh)on.push(sh.id);
+    });
+    dayCov.push({count:on.length,on:on,complete:complete});
+    if(filled>0&&complete&&on.length<cfg.minOn){
+      issues.push({level:'warn',text:DAYS[d2]+': '+(on.length===0?'tidak ada yang bertugas':'hanya '+on.length+' orang bertugas')+' (minimal '+cfg.minOn+').'});
+    }
+  }
+  var total=cfg.people.length*7;
+  if(filled>0&&filled<total)issues.push({level:'info',text:(total-filled)+' kotak belum diisi.'});
+  var rank={danger:0,warn:1,info:2};
+  issues.sort(function(x,y){return rank[x.level]-rank[y.level];});
+  return {rows:rows,issues:issues,warn:warn,dayCov:dayCov,filled:filled};
+}
+/* LOGIC:END */
+
+/* ---------- state ---------- */
+var $=function(id){return document.getElementById(id);};
+var esc=function(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
+var cfg=clone(DEFAULT_CONFIG);
+var weekStart=mondayOf(new Date());
+var weekKey=keyOf(weekStart);
+var weekCache={};
+var db=null,readOnly=false,lsOK=false;
+var loading={cfg:true,wk:true};
+var unsubWk=null,unsubCfg=null;
+var pending={};
+var saveState='idle',flashMsg='',flashTimer=null;
+
+function emptyWeek(){return {cells:normCells(null),example:false};}
+function cur(){return weekCache[weekKey]||(weekCache[weekKey]=emptyWeek());}
+function hasAny(w){return DEFAULT_CONFIG.people.some(function(p){return (w.cells[p.id]||[]).some(Boolean);});}
+
+/* ---------- storage ---------- */
+function readLocal(path){try{var s=localStorage.getItem('jk:'+path);return s?JSON.parse(s):null;}catch(e){return null;}}
+function isDirty(path){var e=pending[path];return !!(e&&(e.timer||e.busy||e.again));}
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+async function persist(path,data){
+  if(db){
+    try{await db.doc(path).set(data);}
+    catch(err){
+      if(err&&err.code==='unavailable'){await sleep(400+Math.random()*600);await db.doc(path).set(data);}
+      else throw err;
+    }
+  }else if(lsOK){
+    localStorage.setItem('jk:'+path,JSON.stringify(data));
+  }
+}
+function queueSave(path,getData){
+  var e=pending[path]||(pending[path]={timer:null,busy:false,again:false,get:null});
+  e.get=getData;clearTimeout(e.timer);
+  e.timer=setTimeout(function(){e.timer=null;flush(path);},350);
+  setStatus('saving');
+}
+async function flush(path){
+  var e=pending[path];
+  if(e.busy){e.again=true;return;}
+  e.busy=true;
+  try{await persist(path,e.get());setStatus('saved');}
+  catch(err){onSaveError(err);}
+  e.busy=false;
+  if(e.again){e.again=false;flush(path);}
+}
+function onSaveError(err){
+  var code=err&&err.code;
+  if(code==='invalid_argument'||code==='not_granted'){readOnly=true;applyRO();renderAll();flash('Anda hanya bisa melihat jadwal ini.');setStatus('idle');}
+  else if(code==='quota_exceeded'){flash('Penyimpanan penuh, jadwal tidak tersimpan.');setStatus('error');}
+  else setStatus('error');
+}
+function setStatus(s){saveState=s;paintStatus();}
+function flash(msg){flashMsg=msg;paintStatus();clearTimeout(flashTimer);flashTimer=setTimeout(function(){flashMsg='';paintStatus();},3500);}
+function paintStatus(){
+  var el=$('status');
+  var map={saving:'Menyimpan…',saved:'Tersimpan',error:'Gagal menyimpan. Ubah lagi untuk mencoba ulang.',idle:''};
+  el.textContent=flashMsg||map[saveState]||'';
+  el.dataset.s=flashMsg?'flash':saveState;
+}
+
+/* ---------- editing ---------- */
+function touchConfig(){
+  renderAll();
+  queueSave('config/main',function(){return cfg;});
+}
+function touchWeek(){
+  var key=weekKey,w=cur();w.example=false;
+  renderAll();
+  queueSave('weeks/'+key,function(){return {cells:w.cells,example:false};});
+}
+function setCell(pid,d,v){
+  if(readOnly||loading.wk)return;
+  cur().cells[pid][d]=v;
+  touchWeek();
+}
+var armTimers={};
+function guarded(btn,needs,run){
+  btn.addEventListener('click',function(){
+    if(btn.disabled)return;
+    if(needs()&&!btn.classList.contains('armed')){
+      btn.classList.add('armed');btn.dataset.label=btn.textContent;btn.textContent='Yakin? Klik lagi';
+      clearTimeout(armTimers[btn.id]);
+      armTimers[btn.id]=setTimeout(function(){disarm(btn);},3500);
+      return;
+    }
+    disarm(btn);run();
+  });
+}
+function disarm(btn){
+  if(btn.classList.contains('armed')){btn.classList.remove('armed');btn.textContent=btn.dataset.label;}
+  clearTimeout(armTimers[btn.id]);
+}
+function doAutofill(){
+  var w=cur();w.cells=autoFill(cfg,weekIdx(weekStart));
+  touchWeek();flash('Rotasi awal terisi. Ubah kotak mana pun sesuai kebutuhan.');
+}
+function doClear(){cur().cells=normCells(null);touchWeek();}
+async function doCopyPrev(){
+  var pk=keyOf(addDays(weekStart,-7)),prev=weekCache[pk];
+  try{
+    if(!prev){
+      if(db){var snap=await db.doc('weeks/'+pk).get();prev=snap.exists?normWeek(snap.data()):null;}
+      else{var l=readLocal('weeks/'+pk);prev=l?normWeek(l):null;}
+    }
+  }catch(e){flash('Minggu lalu tidak bisa dibaca.');return;}
+  if(!prev||!hasAny(prev)){flash('Minggu lalu belum ada jadwal.');return;}
+  cur().cells=clone(prev.cells);touchWeek();flash('Jadwal minggu lalu disalin.');
+}
+
+/* ---------- rendering ---------- */
+function isToday(d){return keyOf(addDays(weekStart,d))===keyOf(new Date());}
+function cellInner(v){
+  if(v==='off')return '<span class="c-name">Libur</span>';
+  var s=shiftById(cfg,v);
+  if(!v||!s)return '<span class="c-name">—</span>';
+  return '<span class="c-name">'+esc(s.name)+'</span><span class="c-time">'+fmtT(s.start)+'–'+fmtT(s.end)+'</span>';
+}
+function cellClass(v){return v==='off'?'off':(v&&shiftById(cfg,v)?v:'none');}
+function optionsFor(v){
+  var list=cfg.shifts.map(function(s){return [s.id,s.name+' · '+fmtT(s.start)+'–'+fmtT(s.end)];});
+  list.push(['off','Libur'],['','Belum diisi']);
+  return list.map(function(o){return '<option value="'+o[0]+'"'+(o[0]===v?' selected':'')+'>'+esc(o[1])+'</option>';}).join('');
+}
+
+function renderLegend(){
+  $('legend').innerHTML=cfg.shifts.map(function(s){
+    return '<li><span class="sw '+s.id+'"></span><span><strong>'+esc(s.name)+'</strong> <span class="mono">'+fmtT(s.start)+'–'+fmtT(s.end)+'</span>, '+fmtH(netHours(s))+' jam kerja</span></li>';
+  }).join('')+'<li><span class="sw off"></span><span><strong>Libur</strong></span></li>';
+}
+
+function renderBoard(A,w){
+  var locked=readOnly||loading.wk;
+  var head='<tr><th class="person" scope="col"><span class="sr-only">Nama</span></th>'+DAYS.map(function(n,d){
+    var dt=addDays(weekStart,d);
+    return '<th scope="col" class="'+(isToday(d)?'today':'')+'"><span class="dn">'+DAYS_S[d]+'</span><span class="dd">'+dt.getDate()+'</span><span class="sr-only">'+DAYS[d]+' '+dt.getDate()+' '+MONTHS[dt.getMonth()]+(isToday(d)?', hari ini':'')+'</span></th>';
+  }).join('')+'</tr>';
+  var body=cfg.people.map(function(p){
+    var nm=nameOf(p);
+    var tds=[0,1,2,3,4,5,6].map(function(d){
+      var v=w.cells[p.id][d],k=p.id+'-'+d,warn=A.warn[k];
+      return '<td><label class="cell '+cellClass(v)+(warn?' warn':'')+(locked?' locked':'')+'"'+(warn?' title="'+esc(warn)+'"':'')+'>'+cellInner(v)+
+        '<select data-key="'+k+'" data-p="'+p.id+'" data-d="'+d+'" aria-label="'+esc(nm)+', '+DAYS[d]+'"'+(locked?' disabled':'')+'>'+optionsFor(v)+'</select></label></td>';
+    }).join('');
+    return '<tr class="'+p.type+'"><th scope="row" class="person"><span class="pn">'+esc(nm)+'</span><span class="role">'+(p.type==='dw'?'DW':'Staff')+'</span></th>'+tds+'</tr>';
+  }).join('');
+  var foot='<tr><th scope="row" class="person">Bertugas</th>'+A.dayCov.map(function(c){
+    var low=c.complete&&A.filled>0&&c.count<cfg.minOn;
+    return '<td class="'+(low?'low':'')+'"><span class="cnt">'+c.count+'</span><span class="dots" aria-hidden="true">'+c.on.map(function(id){return '<i class="'+id+'"></i>';}).join('')+'</span><span class="sr-only">orang bertugas</span></td>';
+  }).join('')+'</tr>';
+  var active=document.activeElement&&document.activeElement.dataset?document.activeElement.dataset.key:null;
+  var boardEl=$('board'),sx=boardEl.scrollLeft;
+  boardEl.innerHTML='<table class="grid"><caption class="sr-only">Jadwal kerja '+esc(weekLabel(weekStart))+'</caption><thead>'+head+'</thead><tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot></table>';
+  boardEl.scrollLeft=sx;
+  if(active){var el=boardEl.querySelector('select[data-key="'+active+'"]');if(el)el.focus({preventScroll:true});}
+}
+
+function renderPanels(A){
+  $('hours').innerHTML=cfg.people.map(function(p){
+    var r=A.rows[p.id],nm=nameOf(p),staff=p.type==='staff';
+    var max=Math.max(cfg.limit*1.25,r.hours*1.05,1);
+    var pct=Math.min(100,r.hours/max*100),tick=cfg.limit/max*100;
+    var over=staff&&r.hours>cfg.limit,blank=r.empty===7;
+    var note=blank?'Belum diisi':(r.days+' hari'+(staff?(over?' · <span class="bad">lebih '+fmtH(r.hours-cfg.limit)+' jam</span>':' · sisa '+fmtH(cfg.limit-r.hours)+' jam'):' · harian'));
+    return '<div class="hrow"><span class="hname">'+esc(nm)+'</span><span class="meter'+(over?' over':'')+(staff?'':' dwm')+'" aria-hidden="true"><i style="width:'+pct.toFixed(1)+'%"></i>'+(staff?'<b style="left:'+tick.toFixed(1)+'%"></b>':'')+'</span><span class="hval"><strong>'+fmtH(r.hours)+' jam</strong>'+note+'</span></div>';
+  }).join('')+'<p class="hint" style="margin-top:8px">Garis tegak pada batang menandai batas '+fmtH(cfg.limit)+' jam per minggu untuk staff. DW dihitung harian.</p>';
+  var is=A.issues,bad=is.some(function(i){return i.level==='danger';}),mid=is.some(function(i){return i.level==='warn';});
+  var cnt=$('issuecount');cnt.textContent=is.filter(function(i){return i.level!=='info';}).length;
+  cnt.className='count'+(bad?' bad':(mid?' mid':''));
+  if(A.filled===0)$('issues').innerHTML='<li class="empty">Isi jadwal dulu, pengecekan jalan otomatis.</li>';
+  else if(!is.length)$('issues').innerHTML='<li class="iss ok"><span class="mk"></span><span>Tidak ada masalah. Jadwal sesuai aturan yang Anda atur.</span></li>';
+  else $('issues').innerHTML=is.map(function(i){return '<li class="iss '+i.level+'"><span class="mk"></span><span>'+esc(i.text)+'</span></li>';}).join('');
+}
+
+function renderBanner(w){
+  var b=$('banner');
+  if(loading.wk){b.hidden=false;b.textContent='Memuat jadwal tersimpan…';}
+  else if(!hasAny(w)){b.hidden=false;b.textContent='Belum ada jadwal untuk '+weekLabel(weekStart)+'. Pilih shift di setiap kotak, tekan Isi otomatis untuk rotasi awal, atau Salin minggu lalu.';}
+  else b.hidden=true;
+}
+
+function renderFoot(){
+  $('foot').textContent=db?'Perubahan tersimpan otomatis dan terlihat oleh siapa pun yang Anda beri akses ke halaman ini.':(lsOK?'Jadwal ini tersimpan hanya di browser ini. Salin teks WhatsApp untuk membagikannya.':'Jadwal tidak tersimpan setelah halaman ditutup. Salin teks WhatsApp untuk menyimpannya.');
+}
+
+function renderAll(){
+  var w=cur(),A=analyze(cfg,w.cells);
+  $('weeklabel').textContent=weekLabel(weekStart);
+  $('exampletag').hidden=!w.example;
+  $('teamline').textContent=cfg.people.filter(function(p){return p.type==='staff';}).length+' staff dan '+cfg.people.filter(function(p){return p.type==='dw';}).length+' DW';
+  renderLegend();renderBoard(A,w);renderPanels(A);renderBanner(w);renderFoot();
+  if(!$('wa').hidden)$('watext').value=waText();
+  applyRO();
+}
+function applyRO(){
+  ['autofill','copyprev','clear'].forEach(function(id){$(id).disabled=readOnly||loading.wk;});
+  var s=$('settings');
+  Array.prototype.forEach.call(s.querySelectorAll('input,select,button'),function(el){el.disabled=readOnly;});
+}
+
+/* ---------- WhatsApp text ---------- */
+function waText(){
+  var w=cur(),L=['*JADWAL KERJA*',weekLabel(weekStart)];
+  function label(p){return nameOf(p)+(p.type==='dw'?' (DW)':'');}
+  for(var d=0;d<7;d++){
+    var dt=addDays(weekStart,d),lines=[];
+    cfg.shifts.forEach(function(s){
+      var who=cfg.people.filter(function(p){return w.cells[p.id][d]===s.id;}).map(label);
+      if(who.length)lines.push(s.name+' ('+fmtT(s.start)+'–'+fmtT(s.end)+'): '+who.join(', '));
+    });
+    var off=cfg.people.filter(function(p){return w.cells[p.id][d]==='off';}).map(label);
+    if(off.length)lines.push('Libur: '+off.join(', '));
+    if(lines.length)L.push('','*'+DAYS[d]+', '+dt.getDate()+' '+MONTHS[dt.getMonth()]+'*');
+    lines.forEach(function(x){L.push(x);});
+  }
+  if(L.length===2)L.push('','(belum ada jadwal)');
+  return L.join('\n');
+}
+
+/* ---------- settings ---------- */
+function renderSettings(){
+  var shiftsHtml=cfg.shifts.map(function(s){
+    return '<div class="shiftset"><div class="sname"><span class="sw '+s.id+'"></span><input type="text" id="sn-'+s.id+'" maxlength="16" data-f="shift" data-id="'+s.id+'" data-k="name" value="'+esc(s.name)+'" aria-label="Nama shift"></div>'+
+      '<div class="trio"><label class="fld">Mulai<input type="time" id="ss-'+s.id+'" data-f="shift" data-id="'+s.id+'" data-k="start" value="'+s.start+'"></label>'+
+      '<label class="fld">Selesai<input type="time" id="se-'+s.id+'" data-f="shift" data-id="'+s.id+'" data-k="end" value="'+s.end+'"></label>'+
+      '<label class="fld">Istirahat (menit)<input type="number" id="sb-'+s.id+'" inputmode="numeric" min="0" max="240" step="5" data-f="shift" data-id="'+s.id+'" data-k="brk" value="'+s.brk+'"></label></div>'+
+      '<p class="net">Jam kerja bersih <output id="net-'+s.id+'">'+fmtH(netHours(s))+'</output> jam</p></div>';
+  }).join('');
+  var names=cfg.people.map(function(p){
+    return '<label class="fld">'+(p.type==='dw'?'DW (pekerja harian)':esc(p.def))+'<input type="text" id="nm-'+p.id+'" maxlength="24" data-f="name" data-id="'+p.id+'" value="'+esc(p.name)+'"></label>';
+  }).join('');
+  var chips=DAYS_S.map(function(n,i){
+    return '<button type="button" class="chip-btn" id="dwd-'+i+'" data-dwd="'+i+'" aria-pressed="'+(cfg.dwDays.indexOf(i)>=0)+'">'+n+'</button>';
+  }).join('');
+  $('settings').innerHTML='<div class="sgrid"><fieldset><legend>Nama tim</legend>'+names+'</fieldset>'+
+    '<fieldset><legend>Shift</legend>'+shiftsHtml+'</fieldset>'+
+    '<fieldset><legend>Aturan</legend>'+
+    '<label class="fld">Batas jam kerja staff per minggu<input type="number" id="r-limit" inputmode="numeric" min="1" max="80" data-f="rule" data-k="limit" value="'+cfg.limit+'"></label>'+
+    '<label class="fld">Minimal orang bertugas per hari<input type="number" id="r-minOn" inputmode="numeric" min="0" max="5" data-f="rule" data-k="minOn" value="'+cfg.minOn+'"></label>'+
+    '<label class="fld">Jeda istirahat minimal antar shift (jam)<input type="number" id="r-minRest" inputmode="numeric" min="0" max="16" data-f="rule" data-k="minRest" value="'+cfg.minRest+'"></label>'+
+    '<label class="fld">Libur staff per minggu (untuk Isi otomatis)<select id="r-offDays" data-f="rule" data-k="offDays"><option value="1"'+(cfg.offDays===1?' selected':'')+'>1 hari</option><option value="2"'+(cfg.offDays===2?' selected':'')+'>2 hari</option></select></label>'+
+    '<div class="fld" id="dwlabel">Hari DW dibutuhkan</div><div class="chips" role="group" aria-labelledby="dwlabel">'+chips+'</div>'+
+    '<p class="hint">Dipakai saat Isi otomatis. DW mendapat shift '+esc(cfg.shifts[1].name)+' pada hari yang dipilih.</p>'+
+    '</fieldset></div>';
+  applyRO();
+}
+$('settings').addEventListener('input',function(e){
+  var t=e.target,f=t.dataset.f;
+  if(!f||readOnly)return;
+  if(f==='name'){cfg.people.filter(function(p){return p.id===t.dataset.id;})[0].name=t.value;}
+  else if(f==='shift'){
+    var sh=shiftById(cfg,t.dataset.id),k=t.dataset.k;
+    if(k==='name')sh.name=t.value;
+    else if(k==='brk'){var n=parseInt(t.value,10);if(isNaN(n))return;sh.brk=clamp(n,0,240);}
+    else{if(!/^\d{2}:\d{2}$/.test(t.value))return;sh[k]=t.value;}
+    var out=$('net-'+sh.id);if(out)out.textContent=fmtH(netHours(sh));
+  }else if(f==='rule'){
+    var lim={limit:[1,80],minOn:[0,5],minRest:[0,16],offDays:[1,2]},v=parseFloat(t.value);
+    if(!isFinite(v))return;
+    cfg[t.dataset.k]=clamp(v,lim[t.dataset.k][0],lim[t.dataset.k][1]);
+  }
+  touchConfig();
+});
+$('settings').addEventListener('click',function(e){
+  var b=e.target.closest&&e.target.closest('button[data-dwd]');
+  if(!b||readOnly)return;
+  var i=+b.dataset.dwd,at=cfg.dwDays.indexOf(i);
+  if(at>=0)cfg.dwDays.splice(at,1);else cfg.dwDays.push(i);
+  cfg.dwDays.sort();
+  b.setAttribute('aria-pressed',String(at<0));
+  touchConfig();
+});
+
+/* ---------- wiring ---------- */
+$('board').addEventListener('change',function(e){
+  var t=e.target;
+  if(t&&t.matches&&t.matches('select[data-p]'))setCell(t.dataset.p,+t.dataset.d,t.value);
+});
+$('prev').addEventListener('click',function(){gotoWeek(addDays(weekStart,-7));});
+$('next').addEventListener('click',function(){gotoWeek(addDays(weekStart,7));});
+$('thisweek').addEventListener('click',function(){gotoWeek(mondayOf(new Date()));});
+guarded($('autofill'),function(){var w=cur();return hasAny(w)&&!w.example;},doAutofill);
+guarded($('copyprev'),function(){var w=cur();return hasAny(w)&&!w.example;},doCopyPrev);
+guarded($('clear'),function(){return hasAny(cur());},doClear);
+$('setbtn').addEventListener('click',function(){
+  var s=$('settings'),open=s.hidden;
+  s.hidden=!open;this.setAttribute('aria-expanded',String(open));
+  if(open)renderSettings();
+});
+$('wabtn').addEventListener('click',function(){
+  var p=$('wa'),open=p.hidden;
+  p.hidden=!open;this.setAttribute('aria-expanded',String(open));
+  $('wamsg').textContent='';
+  if(open)$('watext').value=waText();
+});
+$('wacopy').addEventListener('click',function(){
+  var ta=$('watext'),msg=$('wamsg');
+  function fallback(){ta.focus();ta.select();msg.textContent='Teks terpilih. Tekan Salin (Ctrl+C) di keyboard Anda.';}
+  try{
+    navigator.clipboard.writeText(ta.value).then(function(){msg.textContent='Tersalin. Tempel di WhatsApp.';},fallback);
+  }catch(e){fallback();}
+});
+
+function gotoWeek(s){
+  weekStart=s;weekKey=keyOf(s);
+  if(unsubWk){unsubWk();unsubWk=null;}
+  if(db){
+    loading.wk=!weekCache[weekKey];
+    subscribeWeek();
+  }else{
+    if(!weekCache[weekKey]){var l=readLocal('weeks/'+weekKey);weekCache[weekKey]=l?normWeek(l):emptyWeek();}
+    loading.wk=false;
+  }
+  renderAll();
+}
+
+function subscribeWeek(){
+  var key=weekKey,path='weeks/'+key;
+  unsubWk=db.doc(path).onSnapshot(function(snap){
+    var changed=false;
+    if(!isDirty(path)){
+      var next=snap.exists?normWeek(snap.data()):emptyWeek();
+      if(JSON.stringify(next)!==JSON.stringify(weekCache[key])){weekCache[key]=next;changed=true;}
+      else if(!weekCache[key]){weekCache[key]=next;changed=true;}
+    }
+    if(key===weekKey){
+      if(loading.wk){loading.wk=false;changed=true;}
+      if(changed)renderAll();
+    }
+  },function(err){
+    if(key===weekKey&&loading.wk){loading.wk=false;renderAll();}
+    if(err&&err.code==='revoked'){readOnly=true;renderAll();}
+  });
+}
+function subscribeConfig(){
+  unsubCfg=db.doc('config/main').onSnapshot(function(snap){
+    loading.cfg=false;
+    if(isDirty('config/main')||!snap.exists)return;
+    var next=normCfg(snap.data());
+    if(JSON.stringify(next)!==JSON.stringify(cfg)){
+      cfg=next;renderAll();
+      var s=$('settings');
+      if(!s.hidden&&!s.contains(document.activeElement))renderSettings();
+    }
+  },function(){loading.cfg=false;});
+}
+
+/* ---------- start ---------- */
+try{localStorage.setItem('jk:t','1');localStorage.removeItem('jk:t');lsOK=true;}catch(e){lsOK=false;}
+renderAll();paintStatus();
+
+(async function init(){
+  var user=null;
+  try{
+    if(window.claude&&window.claude.use){
+      db=await window.claude.use('db');
+      user=await window.claude.use('user');
+    }
+  }catch(e){db=null;}
+  if(user){
+    try{if((await user.can('data.write'))===false)readOnly=true;}catch(e){}
+  }
+  if(db){
+    subscribeConfig();subscribeWeek();
+    setTimeout(function(){if(loading.wk){loading.wk=false;renderAll();}},8000);
+  }else{
+    var c=readLocal('config/main');if(c)cfg=normCfg(c);
+    var l=readLocal('weeks/'+weekKey);weekCache[weekKey]=l?normWeek(l):emptyWeek();
+    loading.wk=false;loading.cfg=false;
+  }
+  renderAll();
+})();
+})();
+</script>
+
+</body></html>
